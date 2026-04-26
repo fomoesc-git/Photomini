@@ -33,7 +33,7 @@ npm run tauri build
 ## 系统要求
 
 - macOS 11.0+
-- Windows 10+（后续支持）
+- Windows 10+
 
 ## 使用说明
 

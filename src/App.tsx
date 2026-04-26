@@ -677,7 +677,7 @@ function App() {
 
       {/* 底部角标 */}
       <div className="footer">
-        本工具由@常宁千影设计&nbsp;&nbsp;Photomini V1.1.2
+        本工具由@常宁千影设计&nbsp;&nbsp;Photomini V1.1.3
       </div>
     </div>
   );

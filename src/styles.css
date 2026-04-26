@@ -180,7 +180,8 @@ body {
 /* 单选选项 */
 .radio-group {
   display: flex;
-  gap: 20px;
+  flex-wrap: wrap;
+  gap: 12px 20px;
 }
 
 .radio-option {
@@ -191,6 +192,9 @@ body {
   cursor: pointer;
   color: var(--color-text);
   transition: color 0.2s;
+  /* 防止文字换行 */
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .radio-option:hover {
@@ -246,6 +250,11 @@ body {
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
+  /* 限制宽度并截断长路径 */
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .folder-btn:hover {

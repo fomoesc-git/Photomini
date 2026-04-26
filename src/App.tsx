@@ -127,7 +127,8 @@ function App() {
               outputPath = `${resizeSavePath}/${size}px/${baseName}${ext}`;
             } else if (resizeSaveMode === "sameDir") {
               // 原文件夹：在原图所在文件夹按尺寸创建子文件夹
-              const parent = file.path.substring(0, file.path.lastIndexOf("/"));
+              const lastSep = Math.max(file.path.lastIndexOf("/"), file.path.lastIndexOf("\\"));
+              const parent = file.path.substring(0, lastSep);
               const origExt = file.name.replace(/.*\.(.*)$/, "$1").toLowerCase();
               const ext = resizeFormat === "webp" ? ".webp" : (origExt === "png" ? ".png" : ".jpg");
               const baseName = file.name.replace(/\.[^.]+$/, "");
@@ -236,7 +237,7 @@ function App() {
                   status: "pending",
                 });
               } catch {
-                const name = filePath.split("/").pop() || filePath;
+                const name = filePath.split(/[/\\]/).pop() || filePath;
                 newFiles.push({
                   id: generateId(),
                   name,
@@ -302,7 +303,7 @@ function App() {
             status: "pending",
           });
         } catch {
-          const name = path.split("/").pop() || path;
+          const name = path.split(/[/\\]/).pop() || path;
           newFiles.push({
             id: generateId(),
             name,
@@ -422,7 +423,7 @@ function App() {
                     onClick={() => selectFolder("compress")}
                   >
                     {compressSavePath
-                      ? compressSavePath.split("/").pop()
+                      ? compressSavePath.split(/[/\\]/).pop()
                       : "选择文件夹"}
                   </button>
                 )}
@@ -492,7 +493,7 @@ function App() {
                     onClick={() => selectFolder("convert")}
                   >
                     {convertSavePath
-                      ? convertSavePath.split("/").pop()
+                      ? convertSavePath.split(/[/\\]/).pop()
                       : "选择文件夹"}
                   </button>
                 )}
@@ -619,7 +620,7 @@ function App() {
                     onClick={() => selectFolder("resize")}
                   >
                     {resizeSavePath
-                      ? resizeSavePath.split("/").pop()
+                      ? resizeSavePath.split(/[/\\]/).pop()
                       : "选择文件夹"}
                   </button>
                 )}

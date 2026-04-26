@@ -1,0 +1,17 @@
+{
+  "$schema": "https://schemas.tauri.app/capabilities",
+  "identifier": "default",
+  "description": "Photomini 默认权限配置",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:event:default",
+    "core:window:allow-set-size",
+    "dialog:default",
+    "dialog:allow-open",
+    "dialog:allow-save",
+    "fs:default",
+    "fs:allow-read",
+    "fs:allow-write"
+  ]
+}

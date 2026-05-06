@@ -18,6 +18,37 @@ type ConvertMode = "toWebp" | "toJpg";
 type OutputMode = "overwrite" | "saveAs";
 type ResizeFormat = "keep" | "webp";
 type ResizeSaveMode = "sameDir" | "saveAs"; // sameDir=原文件夹(webp用) / 覆盖(原格式用)
+type WatermarkPosition =
+  | "topLeft"
+  | "topCenter"
+  | "topRight"
+  | "centerLeft"
+  | "center"
+  | "centerRight"
+  | "bottomLeft"
+  | "bottomCenter"
+  | "bottomRight";
+
+const watermarkPositions: { value: WatermarkPosition; label: string; title: string }[] = [
+  { value: "topLeft", label: "↖", title: "左上" },
+  { value: "topCenter", label: "↑", title: "上中" },
+  { value: "topRight", label: "↗", title: "右上" },
+  { value: "centerLeft", label: "←", title: "左中" },
+  { value: "center", label: "•", title: "居中" },
+  { value: "centerRight", label: "→", title: "右中" },
+  { value: "bottomLeft", label: "↙", title: "左下" },
+  { value: "bottomCenter", label: "↓", title: "下中" },
+  { value: "bottomRight", label: "↘", title: "右下" },
+];
+const WATERMARK_SETTINGS_KEY = "photomini.resizeWatermarkSettings.v1";
+
+interface SavedWatermarkSettings {
+  enabled?: boolean;
+  path?: string | null;
+  position?: WatermarkPosition;
+  maxWidthPercent?: number;
+  marginPercent?: number;
+}
 
 function formatSize(bytes: number | null): string {
   if (bytes === null) return "...";
@@ -30,6 +61,19 @@ function formatSize(bytes: number | null): string {
 
 function generateId(): string {
   return Math.random().toString(36).substring(2, 9);
+}
+
+function getPathName(path: string): string {
+  return path.split(/[/\\]/).pop() || path;
+}
+
+function isWatermarkPosition(value: unknown): value is WatermarkPosition {
+  return watermarkPositions.some((position) => position.value === value);
+}
+
+function clampNumber(value: unknown, min: number, max: number, fallback: number): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
+  return Math.min(max, Math.max(min, value));
 }
 
 function App() {
@@ -59,8 +103,55 @@ function App() {
   const resizeQualityOptions = [45, 75];
   const [resizeSaveMode, setResizeSaveMode] = useState<ResizeSaveMode>("sameDir");
   const [resizeSavePath, setResizeSavePath] = useState<string | null>(null);
+  const [resizeWatermarkEnabled, setResizeWatermarkEnabled] = useState(false);
+  const [resizeWatermarkPath, setResizeWatermarkPath] = useState<string | null>(null);
+  const [resizeWatermarkPosition, setResizeWatermarkPosition] =
+    useState<WatermarkPosition>("bottomRight");
+  const [resizeWatermarkMaxWidthPercent, setResizeWatermarkMaxWidthPercent] = useState(24);
+  const [resizeWatermarkMarginPercent, setResizeWatermarkMarginPercent] = useState(3);
+  const [isWatermarkSettingsOpen, setIsWatermarkSettingsOpen] = useState(false);
 
   const hasFiles = files.length > 0;
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(WATERMARK_SETTINGS_KEY);
+      if (!saved) return;
+
+      const settings = JSON.parse(saved) as SavedWatermarkSettings;
+      setResizeWatermarkEnabled(Boolean(settings.enabled));
+      setResizeWatermarkPath(
+        typeof settings.path === "string" && settings.path ? settings.path : null
+      );
+      if (isWatermarkPosition(settings.position)) {
+        setResizeWatermarkPosition(settings.position);
+      }
+      setResizeWatermarkMaxWidthPercent(
+        clampNumber(settings.maxWidthPercent, 8, 45, 24)
+      );
+      setResizeWatermarkMarginPercent(clampNumber(settings.marginPercent, 0, 12, 3));
+    } catch {
+      window.localStorage.removeItem(WATERMARK_SETTINGS_KEY);
+    }
+  }, []);
+
+  useEffect(() => {
+    const settings: SavedWatermarkSettings = {
+      enabled: resizeWatermarkEnabled,
+      path: resizeWatermarkPath,
+      position: resizeWatermarkPosition,
+      maxWidthPercent: resizeWatermarkMaxWidthPercent,
+      marginPercent: resizeWatermarkMarginPercent,
+    };
+
+    window.localStorage.setItem(WATERMARK_SETTINGS_KEY, JSON.stringify(settings));
+  }, [
+    resizeWatermarkEnabled,
+    resizeWatermarkPath,
+    resizeWatermarkPosition,
+    resizeWatermarkMaxWidthPercent,
+    resizeWatermarkMarginPercent,
+  ]);
 
   // 处理单个文件
   const processFile = useCallback(
@@ -142,6 +233,11 @@ function App() {
               outputFormat,
               quality: resizeQuality,
               outputPath,
+              watermarkPath:
+                resizeWatermarkEnabled && resizeWatermarkPath ? resizeWatermarkPath : null,
+              watermarkPosition: resizeWatermarkPosition,
+              watermarkMaxWidthPercent: resizeWatermarkMaxWidthPercent,
+              watermarkMarginPercent: resizeWatermarkMarginPercent,
             });
 
             totalNewSize += res.new_size;
@@ -203,6 +299,11 @@ function App() {
       resizeQuality,
       resizeSaveMode,
       resizeSavePath,
+      resizeWatermarkEnabled,
+      resizeWatermarkPath,
+      resizeWatermarkPosition,
+      resizeWatermarkMaxWidthPercent,
+      resizeWatermarkMarginPercent,
     ]
   );
 
@@ -338,6 +439,29 @@ function App() {
         setResizeSavePath(selected);
       }
     }
+  };
+
+  const selectWatermark = async () => {
+    const selected = await open({
+      multiple: false,
+      filters: [
+        {
+          name: "Images",
+          extensions: ["jpg", "jpeg", "png", "webp"],
+        },
+      ],
+    });
+
+    if (selected && typeof selected === "string") {
+      setResizeWatermarkPath(selected);
+      setResizeWatermarkEnabled(true);
+    }
+  };
+
+  const clearWatermark = () => {
+    setResizeWatermarkPath(null);
+    setResizeWatermarkEnabled(false);
+    setIsWatermarkSettingsOpen(false);
   };
 
   const toggleSize = (size: number) => {
@@ -564,6 +688,27 @@ function App() {
                 ))}
               </div>
             </div>
+            {/* 自定义水印 */}
+            <div className="settings-row">
+              <div className="watermark-compact-row">
+                <label className="checkbox-option watermark-toggle">
+                  <input
+                    type="checkbox"
+                    checked={resizeWatermarkEnabled}
+                    onChange={(e) => setResizeWatermarkEnabled(e.target.checked)}
+                  />
+                  <span className="checkbox-box"></span>
+                  添加自定义水印
+                </label>
+                <button
+                  className="compact-action-btn"
+                  onClick={() => setIsWatermarkSettingsOpen(true)}
+                  disabled={!resizeWatermarkEnabled}
+                >
+                  {resizeWatermarkPath ? getPathName(resizeWatermarkPath) : "水印设置"}
+                </button>
+              </div>
+            </div>
             {/* 保存方式 */}
             <div className="settings-row">
               <div className="radio-group">
@@ -675,9 +820,100 @@ function App() {
         </div>
       )}
 
+      {isWatermarkSettingsOpen && (
+        <div
+          className="modal-backdrop"
+          onMouseDown={() => setIsWatermarkSettingsOpen(false)}
+        >
+          <div className="watermark-modal" onMouseDown={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <div className="modal-title">自定义水印</div>
+                <div className="modal-subtitle">
+                  {resizeWatermarkPath ? getPathName(resizeWatermarkPath) : "尚未选择水印图片"}
+                </div>
+              </div>
+              <button
+                className="modal-close-btn"
+                onClick={() => setIsWatermarkSettingsOpen(false)}
+                aria-label="关闭"
+              >
+                ×
+              </button>
+            </div>
+            <div className="watermark-file-row">
+              <button className="folder-btn watermark-file-btn" onClick={selectWatermark}>
+                {resizeWatermarkPath ? "更换水印图片" : "选择水印图片"}
+              </button>
+              {resizeWatermarkPath && (
+                <button className="text-btn" onClick={clearWatermark}>
+                  移除
+                </button>
+              )}
+            </div>
+            <div className="watermark-controls">
+              <div className="watermark-control">
+                <div className="settings-label">位置</div>
+                <div className="position-grid">
+                  {watermarkPositions.map((position) => (
+                    <button
+                      key={position.value}
+                      className={`position-btn ${
+                        resizeWatermarkPosition === position.value ? "active" : ""
+                      }`}
+                      title={position.title}
+                      aria-label={position.title}
+                      onClick={() => setResizeWatermarkPosition(position.value)}
+                    >
+                      {position.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="watermark-control sliders">
+                <label className="range-row">
+                  <span>大小上限</span>
+                  <strong>{resizeWatermarkMaxWidthPercent}%</strong>
+                  <input
+                    type="range"
+                    min="8"
+                    max="45"
+                    step="1"
+                    value={resizeWatermarkMaxWidthPercent}
+                    onChange={(e) =>
+                      setResizeWatermarkMaxWidthPercent(Number(e.target.value))
+                    }
+                  />
+                </label>
+                <label className="range-row">
+                  <span>边距</span>
+                  <strong>{resizeWatermarkMarginPercent}%</strong>
+                  <input
+                    type="range"
+                    min="0"
+                    max="12"
+                    step="1"
+                    value={resizeWatermarkMarginPercent}
+                    onChange={(e) =>
+                      setResizeWatermarkMarginPercent(Number(e.target.value))
+                    }
+                  />
+                </label>
+              </div>
+            </div>
+            <button
+              className="modal-done-btn"
+              onClick={() => setIsWatermarkSettingsOpen(false)}
+            >
+              完成
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* 底部角标 */}
       <div className="footer">
-        本工具由@常宁千影设计&nbsp;&nbsp;Photomini V1.1.3
+        本工具由@常宁千影设计&nbsp;&nbsp;Photomini V1.2.1
       </div>
     </div>
   );
